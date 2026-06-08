@@ -1,0 +1,130 @@
+# ============================================================
+# A股短线+中线智能选股助手 — 配置文件
+# 所有权重、阈值、过滤条件均可在此调整
+# ============================================================
+
+# --- 数据源配置 ---
+data:
+  cache_ttl_hours: 4          # 缓存有效期（小时），避免重复请求
+  request_timeout: 30         # API 请求超时（秒）
+  max_retries: 3              # 失败重试次数
+  retry_backoff: 2            # 重试退避倍数
+
+# --- 短线策略配置 ---
+short_term:
+  # 过滤条件
+  filter:
+    min_daily_change: 3.0       # 当日最低涨幅 (%)
+    min_turnover_rate: 5.0      # 最低换手率 (%)
+    max_turnover_rate: 25.0     # 最高换手率 (%)
+    max_float_market_cap: 500   # 最大流通市值 (亿)
+    min_list_days: 60           # 最低上市天数（排除新股）
+    exclude_st: true            # 排除 ST/*ST
+
+  # 评分权重 (总和 100)
+  weights:
+    capital_flow: 30            # 资金面
+    sentiment: 25               # 情绪面
+    technical: 25               # 技术面
+    liquidity: 20               # 流通性
+
+  # 资金面子权重
+  capital_flow_sub:
+    main_force_inflow: 10       # 主力净流入
+    dragon_tiger_net: 10        # 龙虎榜净买入
+    hot_money_activity: 5       # 游资参与度
+    north_bound_increase: 5     # 北向增持
+
+  # 情绪面子权重
+  sentiment_sub:
+    limit_up_strength: 10       # 涨停强度
+    sector_heat: 10             # 板块热度
+    consecutive_boards: 5       # 连板高度
+
+  # 技术面子权重
+  technical_sub:
+    ma_bullish: 10              # 均线多头排列
+    macd_signal: 5              # MACD金叉/红柱
+    volume_price: 5             # 量价配合
+    rsi_range: 5                # RSI强势区间
+
+  # 流通性子权重
+  liquidity_sub:
+    market_cap_fit: 8           # 流通市值适中
+    turnover_healthy: 7         # 换手率健康
+    amplitude_reasonable: 5     # 振幅合理
+
+  # 输出
+  output_count: 8               # 每日推荐数量上限
+  max_same_sector: 2            # 同一板块最多推荐数
+
+# --- 中线策略配置 ---
+mid_term:
+  # 过滤条件
+  filter:
+    min_float_market_cap: 50    # 最小流通市值 (亿)
+    max_float_market_cap: 500   # 最大流通市值 (亿)
+    pe_percentile_max: 30       # PE历史分位上限 (%)
+    ma60_slope_positive: true   # 60日均线必须向上
+    above_ma60: true            # 股价在60日线上方
+    north_bound_days: 20        # 北向资金观察天数
+
+  # 评分权重 (总和 100)
+  weights:
+    trend: 35                   # 趋势面
+    fundamentals: 30            # 基本面
+    capital_accumulation: 20    # 资金沉淀
+    industry_prosperity: 15     # 行业景气
+
+  # 趋势面子权重
+  trend_sub:
+    weekly_bullish: 15          # 周线多头
+    ma_slope: 10                # 中期均线斜率
+    bollinger_position: 10      # 布林带位置
+
+  # 基本面子权重
+  fundamentals_sub:
+    roe: 10                     # ROE
+    revenue_growth: 10          # 营收增速
+    pe_percentile: 10           # PE分位
+
+  # 资金沉淀子权重
+  capital_accumulation_sub:
+    institution_change: 10      # 机构持仓变化
+    north_flow_continuous: 10   # 北向持续流入
+
+  # 行业景气子权重
+  industry_prosperity_sub:
+    policy_support: 5           # 政策支持
+    relative_strength: 10       # 板块相对强度
+
+  # 输出
+  min_score_threshold: 65       # 最低推荐分数（低于此分不推荐）
+  output_count: 2               # 每次推荐数量上限
+
+# --- 技术指标参数 ---
+technical:
+  ma_periods: [5, 10, 20, 60]  # 均线周期
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  rsi_period: 14
+  rsi_strong_min: 50            # RSI强势下限
+  rsi_strong_max: 80            # RSI强势上限
+  bollinger_period: 20
+  bollinger_std: 2
+
+# --- 报告配置 ---
+report:
+  output_dir: "reports"
+  save_markdown: true
+  show_rich_table: true
+  show_buy_range: true
+  show_stop_loss: true
+  stop_loss_pct: -5.0           # 短线止损比例 (%)
+
+# --- 通知配置 ---
+notification:
+  enabled: false                  # 启用推送（需要先配置 sendkey）
+  type: "serverchan"              # serverchan / wechat_work / dingtalk / feishu
+  sendkey: ""                     # Server酱 SendKey: https://sct.ftqq.com/ 注册获取

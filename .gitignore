@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 数据缓存 (每次运行重新生成)
+data/cache/
+*.pkl
+
+# 报告 (GitHub Actions 上传为 artifact)
+reports/*.md
+
+# 虚拟环境
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
