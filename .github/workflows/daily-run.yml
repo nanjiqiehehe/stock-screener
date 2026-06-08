@@ -1,58 +1,63 @@
-# A股智能选股助手 — GitHub Actions 定时运行
-# 每天北京时间 18:00 (UTC 10:00) 自动运行，盘后数据就绪后执行
+# A股智能选股助手 — GitHub Actions
+# 每天北京时间 18:00 (UTC 10:00) 自动运行
+# 1. 运行选股分析
+# 2. 推送微信
+# 3. 部署 GitHub Pages 看板
 
 name: A股每日选股
 
 on:
   schedule:
-    # 北京时间 18:00 = UTC 10:00（盘后数据全部就绪）
-    - cron: '0 10 * * 1-5'    # 周一至周五
-  workflow_dispatch:            # 允许手动触发
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
     inputs:
       date:
-        description: '指定日期 (YYYY-MM-DD，留空为最新交易日)'
+        description: '指定日期 (YYYY-MM-DD)'
         required: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
   stock-scan:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 安装 Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: |
-          pip install akshare pandas numpy pyyaml rich requests
+        run: pip install akshare pandas numpy pyyaml rich requests
 
       - name: 运行选股分析
-        id: run
         env:
           SENDKEY: ${{ secrets.SENDKEY }}
           RUN_DATE: ${{ inputs.date || '' }}
         run: |
-          # 如果配置了 SENDKEY，启用推送
           if [ -n "$SENDKEY" ]; then
             sed -i "s/enabled: false/enabled: true/" config.yaml
-            sed -i "s/sendkey: \"\"/sendkey: \"$SENDKEY\"/" config.yaml
-            echo "Server酱推送已启用"
+            sed -i "s|sendkey: .*|sendkey: \"$SENDKEY\"|" config.yaml
           fi
-
-          # 运行分析
           if [ -n "$RUN_DATE" ]; then
             python run.py --date "$RUN_DATE"
           else
             python run.py
           fi
 
-      - name: 上传报告
-        uses: actions/upload-artifact@v4
+      - name: 提交报告数据
+        run: |
+          git config user.name "stock-bot"
+          git config user.email "bot@stock.local"
+          git add docs/report.json reports/ -f 2>/dev/null || true
+          git diff --staged --quiet || (git commit -m "📊 更新日报 $(date +%Y-%m-%d)" && git push)
+
+      - name: 部署 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          name: daily-report
-          path: reports/*.md
-          retention-days: 30
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          force_orphan: true

@@ -105,6 +105,9 @@ def run_analysis(config: dict, target_date: date | None = None,
     mid_df = mid_result if mid_result is not None and not mid_result.empty else pd.DataFrame()
     reporter.generate(short_df, mid_df, target_date, market_summary)
 
+    # 保存 JSON 数据（GitHub Pages 看板用）
+    _save_report_json(short_df, mid_df, market_spot, target_date)
+
     # 推送微信通知
     alerter = AlertSender(config)
     from src.output.alert import build_push_summary
@@ -115,6 +118,59 @@ def run_analysis(config: dict, target_date: date | None = None,
     print_summary(short_df, mid_df)
 
     return short_df, mid_df
+
+
+def _save_report_json(short_df, mid_df, market_spot, target_date):
+    """保存 report.json 供 GitHub Pages 看板使用"""
+    import json
+    from pathlib import Path
+
+    report = {"date": target_date.isoformat()}
+    report["short_term"] = _df_safe(short_df)
+    report["mid_term"] = _df_safe(mid_df)
+
+    # 市场概况（数值型，不用中文 key）
+    if market_spot is not None and not market_spot.empty:
+        up = int((market_spot["pct_change"] > 0).sum()) if "pct_change" in market_spot.columns else 0
+        down = int((market_spot["pct_change"] < 0).sum()) if "pct_change" in market_spot.columns else 0
+        avg = float(market_spot["pct_change"].mean()) if "pct_change" in market_spot.columns else 0
+        report["market"] = {
+            "up_count": up,
+            "down_count": down,
+            "avg_change": f"{avg:+.2f}%",
+        }
+    else:
+        report["market"] = {}
+
+    # 写到 docs/ (GitHub Pages 根目录)
+    out = Path(PROJECT_ROOT) / "docs" / "report.json"
+    out.write_text(json.dumps(report, ensure_ascii=False, default=str), encoding="utf-8")
+
+
+def _df_safe(df) -> list:
+    """DataFrame 安全转字典列表（处理 numpy 类型）"""
+    import numpy as np
+
+    if df is None or df.empty:
+        return []
+    result = []
+    for idx, row in df.iterrows():
+        d = {}
+        for col in df.columns:
+            val = row[col]
+            if isinstance(val, (np.integer,)):
+                d[col] = int(val)
+            elif isinstance(val, (np.floating,)):
+                d[col] = float(val) if not np.isnan(val) else None
+            elif isinstance(val, np.bool_):
+                d[col] = bool(val)
+            else:
+                d[col] = str(val) if pd.isna(val) else val
+        # 确保 code 字段
+        if "code" not in d:
+            d["code"] = str(idx)
+        result.append(d)
+    return result
 
 
 def print_summary(short_df, mid_df):

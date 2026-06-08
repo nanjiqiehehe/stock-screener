@@ -145,44 +145,98 @@ class AlertSender:
 
 def build_push_summary(short_df, mid_df, target_date, market_summary=None) -> str:
     """
-    生成微信推送专用摘要（简洁、适配手机屏幕）
+    生成微信推送专用摘要（精心排版，适配手机屏幕）
 
-    返回纯文本，长度 < 4096 字符（微信限制）
+    用 emoji + 分隔线 + 等宽对齐，在纯文本约束下做到清晰美观。
     """
     import pandas as pd
+    from datetime import date
+
+    # 市场状态判断
+    is_today = (target_date == date.today())
+    date_label = f"📅 {target_date.isoformat()}  {['周一','周二','周三','周四','周五','周六','周日'][target_date.weekday()]}"
 
     lines = []
-    lines.append(f"📊 A股选股日报 {target_date.isoformat()}")
+    lines.append(f"╔══════════════════════╗")
+    lines.append(f"║   A股智能选股日报     ║")
+    lines.append(f"╠══════════════════════╣")
+    lines.append(f"║ {date_label}     ║")
+    lines.append(f"╚══════════════════════╝")
 
     # 市场概况
     if market_summary:
         lines.append("")
+        lines.append("📊 大盘概况")
+        lines.append("─────────────────")
         for k, v in market_summary.items():
-            lines.append(f"  {k}: {v}")
+            lines.append(f"  {k}：{v}")
 
     # 短线推荐
+    lines.append("")
     if hasattr(short_df, 'empty') and not short_df.empty:
-        lines.append(f"\n⚡ 短线精选 Top{len(short_df)}:")
+        n = len(short_df)
+        lines.append(f"⚡ 短线精选 TOP{n}")
+        lines.append("─────────────────")
         for i, (idx, row) in enumerate(short_df.iterrows(), 1):
-            code = row.get("code", idx)
-            name = row.get("name", "")
+            code = str(row.get("code", idx))
+            name = str(row.get("name", ""))[:6]
             score = row.get("total_score", 0)
             pct = row.get("pct_change", 0)
             pct_s = f"{pct:+.1f}%" if isinstance(pct, (int, float)) else ""
-            lines.append(f"  {i}.{name}({code}) 评分{score:.0f} {pct_s}")
+
+            # 评分等级 emoji
+            if score >= 50:
+                star = "🔥"
+            elif score >= 40:
+                star = "⭐"
+            elif score >= 30:
+                star = "✨"
+            else:
+                star = "  "
+
+            # 连板标签
+            cons = row.get("consecutive", 0)
+            tag = f" {int(cons)}连板" if cons and cons >= 2 else ""
+            if isinstance(pct, (int, float)) and pct >= 20:
+                tag += " 20cm"
+
+            line = f" {star} {i}.{name[:4]:　<4} {code}  {score:.0f}分  {pct_s}{tag}"
+            lines.append(line)
     else:
-        lines.append("\n⚡ 短线: 今日无推荐")
+        lines.append("⚡ 短线精选：今日无推荐")
 
     # 中线推荐
+    lines.append("")
     if hasattr(mid_df, 'empty') and not mid_df.empty:
-        lines.append(f"\n🏔️ 中线趋势 Top{len(mid_df)}:")
+        n = len(mid_df)
+        lines.append(f"🏔️ 中线趋势 TOP{n}")
+        lines.append("─────────────────")
         for i, (idx, row) in enumerate(mid_df.iterrows(), 1):
-            code = row.get("code", idx)
-            name = row.get("name", "")
+            code = str(row.get("code", idx))
+            name = str(row.get("name", ""))[:6]
             score = row.get("total_score", 0)
-            lines.append(f"  {i}.{name}({code}) 评分{score:.0f}")
+            tag = ""
+            if row.get("score_trend", 0) >= 65:
+                tag += " 趋势↑"
+            if row.get("score_fundamentals", 0) >= 60:
+                tag += " 基本面优"
+            lines.append(f"  {i}.{name[:4]:　<4} {code}  {score:.0f}分{tag}")
     else:
-        lines.append("\n🏔️ 中线: 无股票达标")
+        lines.append("🏔️ 中线趋势：无股票达标")
 
-    lines.append(f"\n⏰ {pd.Timestamp.now().strftime('%H:%M')} | 量化辅助研究，不构成投资建议")
-    return "\n".join(lines)
+    # 完整报告链接
+    lines.append("")
+    lines.append("─────────────────")
+    lines.append("📋 完整图表看板 →")
+    lines.append("https://nanjiqiehehe.github.io/stock-screener/")
+
+    # 风险提示
+    lines.append("")
+    lines.append("⚠️ 量化辅助研究 · 非投资建议")
+    lines.append(f"🤖 {pd.Timestamp.now().strftime('%m/%d %H:%M')} 自动生成")
+
+    msg = "\n".join(lines)
+    # 控制长度
+    if len(msg) > 3500:
+        msg = msg[:3490] + "\n\n... (内容过长已截断)"
+    return msg
