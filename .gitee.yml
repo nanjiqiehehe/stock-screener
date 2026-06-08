@@ -1,0 +1,27 @@
+# Gitee Go 流水线配置 — A股每日选股
+# 每个工作日 18:00 (UTC 10:00) 自动运行
+
+version: '1.0'
+name: stock-screener-daily
+
+triggers:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 10 * * 1-5'
+
+stages:
+  - name: analyze
+    displayName: 每日选股分析
+    job:
+      steps:
+        - step: install
+          displayName: 安装依赖
+          image: python:3.12
+          script:
+            - pip install akshare pandas numpy pyyaml rich requests
+        - step: run
+          displayName: 运行分析
+          script:
+            - python run.py
