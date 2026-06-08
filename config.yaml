@@ -125,6 +125,6 @@ report:
 
 # --- 通知配置 ---
 notification:
-  enabled: false                  # 启用推送（需要先配置 sendkey）
-  type: "serverchan"              # serverchan / wechat_work / dingtalk / feishu
-  sendkey: ""                     # Server酱 SendKey: https://sct.ftqq.com/ 注册获取
+  enabled: true
+  type: "serverchan"
+  sendkey: "SCT311167TMXbXfhAaa3KyB3Qa1rgYMSIh"
