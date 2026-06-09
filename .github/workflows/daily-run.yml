@@ -8,7 +8,8 @@ name: A股每日选股
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5'
+    - cron: '0 10 * * 1-5'    # 主触发：18:00 北京
+    - cron: '15 10 * * 1-5'   # 备份触发：18:15 北京（GitHub延迟兜底）
   workflow_dispatch:
     inputs:
       date:
